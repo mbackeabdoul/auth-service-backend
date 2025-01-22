@@ -51,5 +51,41 @@ app.post('/api/auth/google-signup', async (req, res) => {
   }
 });
 
+// Route pour obtenir le profil utilisateur
+app.get('/api/users/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+// Middleware d'authentification
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: "Token manquant" });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ message: "Token invalide" });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+// Route de déconnexion (optionnelle côté serveur)
+app.post('/api/auth/logout', authenticateToken, (req, res) => {
+  res.json({ message: "Déconnexion réussie" });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));

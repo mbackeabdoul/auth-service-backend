@@ -8,10 +8,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  googleId: {
-    type: String,
-    sparse: true
-  },
+  googleId: String,  // Retiré l'index sparse ici car nous utiliserons schema.index()
   isGoogleAccount: {
     type: Boolean,
     default: false
@@ -19,6 +16,9 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Définir l'index une seule fois ici
+userSchema.index({ googleId: 1 }, { sparse: true });
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;
