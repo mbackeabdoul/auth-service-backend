@@ -11,7 +11,7 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connexion à MongoDB réussie'))
   .catch(error => console.error('Erreur MongoDB:', error));
 
-// const app = express();
+const app = express();
 app.use(cors({
   origin: ['https://jade-faun-d9c6a4.netlify.app', 'http://localhost:5173'],
   credentials: true
