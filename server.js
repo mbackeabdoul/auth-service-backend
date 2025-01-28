@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 require('dotenv').config();
 
@@ -11,7 +12,9 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch(error => console.error('Erreur MongoDB:', error));
 
 const app = express();
-
+app.use(cors({
+  origin: 'https://jade-faun-d9c6a4.netlify.app' // Remplacez par l'URL de votre site Netlify
+}));
 app.use(cors());
 app.use(express.json());
 
@@ -19,10 +22,12 @@ app.use(express.json());
 app.post('/api/auth/google-signup', async (req, res) => {
   try {
     const { email, firstName, lastName, googleId } = req.body;
-    
     let user = await User.findOne({ email });
-    
+
     if (user) {
+      if (user.googleId && user.googleId !== googleId)  {
+        return res.status(400).json({ message: 'Cet email est déjà utilisé avec un autre compte Google.' });
+      }
       user.googleId = googleId;
       if (!user.firstName) user.firstName = firstName;
       if (!user.lastName) user.lastName = lastName;
@@ -49,6 +54,61 @@ app.post('/api/auth/google-signup', async (req, res) => {
     console.error('Erreur Google auth:', error);
     res.status(400).json({ message: error.message });
   }
+});
+
+// Route d'inscription manuelle
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, firstName, lastName } = req.body;
+
+    // Vérifier si l'utilisateur existe déjà
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({ message: 'Utilisateur déjà existant' });
+    }
+
+    // Hachage du mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    user = new User({
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+    });
+
+    await user.save();
+
+    // Générer un token JWT
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token, message: 'Inscription réussie' });
+  } catch (error) {
+    console.error('Erreur lors de l\'inscription:', error);
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
+// Route de connexion (login)
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  // Chercher l'utilisateur dans la base de données
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return res.status(404).json({ message: 'Utilisateur non trouvé' });
+  }
+
+  // Vérifier le mot de passe
+  const isMatch = await user.comparePassword(password);  // Comparaison avec le mot de passe haché
+  if (!isMatch) {
+    return res.status(401).json({ message: 'Mot de passe incorrect' });
+  }
+
+  // Si le mot de passe est correct, générer un token JWT
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+  res.json({ token });
 });
 
 // Route pour obtenir le profil utilisateur

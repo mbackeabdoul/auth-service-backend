@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');  // Assurez-vous d'installer bcryptjs
 
 const userSchema = new mongoose.Schema({
   firstName: String,
@@ -8,17 +9,31 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  googleId: String,  // Retiré l'index sparse ici car nous utiliserons schema.index()
+  googleId: String,
   isGoogleAccount: {
     type: Boolean,
     default: false
+  },
+  password: {
+    type: String,
+    required: function() { return !this.isGoogleAccount; } // Un mot de passe est requis si ce n'est pas un compte Google
   }
 }, {
   timestamps: true
 });
 
-// Définir l'index une seule fois ici
-userSchema.index({ googleId: 1 }, { sparse: true });
+// Comparaison du mot de passe haché
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Avant de sauvegarder un utilisateur, hacher le mot de passe
+userSchema.pre('save', async function(next) {
+  if (!this.isGoogleAccount && this.isModified('password')) {
+    this.password = await bcrypt.hash(this.password, 10); // Hachage du mot de passe
+  }
+  next();
+});
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;
