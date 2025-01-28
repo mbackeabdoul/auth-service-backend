@@ -11,12 +11,11 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connexion à MongoDB réussie'))
   .catch(error => console.error('Erreur MongoDB:', error));
 
-const app = express();
+// const app = express();
 app.use(cors({
-  origin: 'https://jade-faun-d9c6a4.netlify.app' // Remplacez par l'URL de votre site Netlify
+  origin: ['https://jade-faun-d9c6a4.netlify.app', 'http://localhost:5173'],
+  credentials: true
 }));
-app.use(cors());
-app.use(express.json());
 
 // Route authentification Google
 app.post('/api/auth/google-signup', async (req, res) => {
